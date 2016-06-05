@@ -3,10 +3,15 @@ import sublime, sublime_plugin
 from functools import partial
 
 
+def settings():
+    return sublime.load_settings('Shell Turtlestein.sublime-settings')
+
+
 def cwd_for_window(window):
     """
     Return the working directory in which the window's commands should run.
 
+    If "active_file_folder" settings is true, return active file folder
     In the common case when the user has one folder open, return that.
     Otherwise, return one of the following (in order of preference):
         1) One of the open folders, preferring a folder containing the active
@@ -15,17 +20,17 @@ def cwd_for_window(window):
         3) The user's home directory.
     """
     folders = window.folders()
-    if len(folders) == 1:
-        return folders[0]
+    active_view = window.active_view()
+    active_file_name = active_view.file_name() if active_view else None
+    if not active_file_name:
+        return folders[0] if len(folders) else os.path.expanduser("~")
+    elif settings().get('active_file_folder'):
+        return os.path.dirname(active_file_name)
     else:
-        active_view = window.active_view()
-        active_file_name = active_view.file_name() if active_view else None
-        if not active_file_name:
-            return folders[0] if len(folders) else os.path.expanduser("~")
         for folder in folders:
             if active_file_name.startswith(folder):
                 return folder
-        return os.path.dirname(active_file_name)
+        return folders[0]
 
 
 def abbreviate_user(path):
@@ -37,10 +42,6 @@ def abbreviate_user(path):
         return "~" + path[len(home_dir):]
     else:
         return path
-
-
-def settings():
-    return sublime.load_settings('Shell Turtlestein.sublime-settings')
 
 
 def cmd_settings(cmd):
@@ -88,6 +89,7 @@ def run_cmd(cwd, cmd, wait, input_str=None):
         subprocess.Popen(cmd, cwd=cwd, shell=shell)
         return (False, None)
 
+
 def show_in_output_panel(message):
     window = sublime.active_window()
     panel_name = 'shell_turtlestein'
@@ -96,6 +98,7 @@ def show_in_output_panel(message):
     panel.insert(edit, 0, message)
     panel.end_edit(edit)
     window.run_command('show_panel', {'panel': 'output.' + panel_name})
+
 
 class ShellPromptCommand(sublime_plugin.WindowCommand):
     """
@@ -117,7 +120,6 @@ class ShellPromptCommand(sublime_plugin.WindowCommand):
                                                        on_done, None, None)
             for (setting, value) in list(settings().get('input_widget').items()):
                 inputview.settings().set(setting, value)
-
 
     def on_done(self, cwd, cmd_str):
         cmd = parse_cmd(cmd_str)
@@ -194,6 +196,7 @@ class ReplaceWithTextCommand(sublime_plugin.TextCommand):
         else:
             self.view.insert(edit, 0, text)
 
+
 class SubprocessInCwdCommand(sublime_plugin.WindowCommand):
     """
     Launch a subprocess using the window's working directory
@@ -212,6 +215,7 @@ class SubprocessInCwdCommand(sublime_plugin.WindowCommand):
 
 active_input_row = -1
 
+
 def callback_with_history(callback, cmd_history, input_text):
     if callback:
         cmd = input_text.split("\n")[active_input_row]
@@ -219,6 +223,7 @@ def callback_with_history(callback, cmd_history, input_text):
             cmd_history.remove(cmd)
         cmd_history.append(cmd)
         return callback(cmd)
+
 
 def show_input_panel_with_readline(window, caption, cmd_history,
                                    on_done, on_change, on_cancel):
@@ -230,6 +235,7 @@ def show_input_panel_with_readline(window, caption, cmd_history,
     view.settings().set('readline_input_widget', True)
     view.show(view.size())
     return view
+
 
 class ReadlineHistoryChange(sublime_plugin.TextCommand):
     def run_(self, someIntNotUsed, args):
@@ -243,6 +249,7 @@ class ReadlineHistoryChange(sublime_plugin.TextCommand):
         self.view.run_command("move_to", {"to": "eol", "extend": False})
         global active_input_row
         active_input_row, _ = self.view.rowcol(self.view.sel()[0].b)
+
 
 class LeftDeleteOnLine(sublime_plugin.TextCommand):
     def run(self, edit):
