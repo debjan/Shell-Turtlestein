@@ -21,16 +21,14 @@ def cwd_for_window(window):
     """
     folders = window.folders()
     active_view = window.active_view()
-    active_file_name = active_view.file_name() if active_view else None
-    if not active_file_name:
-        return folders[0] if len(folders) else os.path.expanduser("~")
-    elif settings().get('active_file_folder'):
+    active_file_name = active_view.file_name() if active_view else ''
+    if active_file_name and settings().get('active_file_folder'):
         return os.path.dirname(active_file_name)
     else:
         for folder in folders:
             if active_file_name.startswith(folder):
                 return folder
-        return folders[0]
+        return folders and folders[0] or os.path.expanduser("~")
 
 
 def abbreviate_user(path):
