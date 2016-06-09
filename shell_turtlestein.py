@@ -30,7 +30,8 @@ def cwd_for_window(window):
         for folder in folders:
             if active_file_name.startswith(folder):
                 return folder
-        return os.path.dirname(active_file_name) or os.path.expanduser("~")
+        default = folders and folder[0] or os.path.dirname(active_file_name)
+        return default or os.path.expanduser("~")
 
 
 def abbreviate_user(path):
